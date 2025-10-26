@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>🧬 DNA Sequence Generator</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js"></script>
+  <style>
+    /* Ensure containers have height */
+    #dna3d {
+      width: 100%;
+      height: 500px;
+      background: rgba(0,0,0,0.1);
+    }
+    .dna3d-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1 style="color: aliceblue;">🧬 DNA Sequence Generator</h1>
+      <p class="gc-target">GC Target: <strong>41%</strong></p>
+    </header>
+
+    <!-- Controls -->
+    <section class="controls">
+      <div class="input-group">
+        <label>Number of sequences:</label>
+        <input type="number" id="num_sequences" value="100" min="1">
+      </div>
+      <button id="generate_btn">Generate Sequences</button>
+    </section>
+
+    <!-- Links -->
+    <div class="links-container">
+      <a href="/metrics" class="btn-metrics">📊 View Full Biological Metrics</a>
+      <a href="/comparison" class="btn-compare">🤖 About the Models</a>
+      <a href="/treatment" class="btn-treatment">🩺👩🏻‍⚕️ Disease Treatment</a>
+    </div>
+
+    <!-- Base composition chart -->
+    <section class="grid-container hidden">
+      <div class="chart-box">
+        <canvas id="baseChart"></canvas>
+      </div>
+      <div class="synthetic-info-box">
+        <h3 style="color: #4DFFB8; margin-bottom: 15px;">🧬 Synthetic Data Analysis</h3>
+        <div class="info-item">
+          <span class="info-label">Data Type:</span>
+          <span class="info-value">Generated DNA Sequences</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Model:</span>
+          <span class="info-value">StackedGAN</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Sequence Length:</span>
+          <span class="info-value">30 nucleotides</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Quality Score:</span>
+          <span class="info-value" id="quality_score">85%</span>
+        </div>
+        <div class="comparison-chart">
+          <canvas id="comparisonChart"></canvas>
+        </div>
+      </div>
+      <div class="gc-box">
+        <label id="gc_label">GC Content: 0%</label>
+        <progress id="gc_progress" value="0" max="100"></progress>
+      </div>
+    </section>
+
+    <!-- 3D DNA + per-sequence chart -->
+    <section class="dna3d-container hidden">
+      <div class="dna3d-header">
+        <h3 style="color: aquamarine;">3D DNA Helix</h3>
+        <select id="sequence_dropdown"></select>
+      </div>
+      <div style="display: flex; gap: 20px; height: 500px;">
+        <div id="dna3d" style="flex: 2;"></div>
+        <div style="flex: 1; ">
+          <canvas id="seqChart" style="width: 100%; height: 100%;"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Output sequences -->
+    <section class="output-container hidden">
+      <pre id="output"></pre>
+    </section>
+
+    <!-- Download buttons -->
+    <div class="download-buttons hidden">
+      <button id="download_fasta">Download FASTA</button>
+      <button id="download_csv">Download CSV</button>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,108 @@
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+# -------------------------
+# Generator
+# -------------------------
+class Generator(nn.Module):
+    def __init__(self, seq_len, vocab_size, hidden_dim=128):
+        super().__init__()
+        self.seq_len = seq_len
+        self.vocab_size = vocab_size
+        self.model = nn.Sequential(
+            nn.Linear(hidden_dim, 256),
+            nn.ReLU(),
+            nn.Linear(256, seq_len * vocab_size),
+            nn.Softmax(dim=-1)
+        )
+
+    def forward(self, z):
+        out = self.model(z)
+        out = out.view(-1, self.seq_len, self.vocab_size)
+        return out
+
+# -------------------------
+# Discriminator
+# -------------------------
+class Discriminator(nn.Module):
+    def __init__(self, seq_len, vocab_size):
+        super().__init__()
+        self.seq_len = seq_len
+        self.vocab_size = vocab_size
+        self.model = nn.Sequential(
+            nn.Linear(seq_len * vocab_size, 256),
+            nn.ReLU(),
+            nn.Linear(256, 1),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        x_flat = x.view(x.size(0), -1)
+        return self.model(x_flat)
+
+# -------------------------
+# Stacked GAN with GC bias
+# -------------------------
+class StackedGAN:
+    def __init__(self, seq_len, vocab_size, hidden_dim=128, lr=0.0002, target_gc=0.42):
+        self.seq_len = seq_len
+        self.vocab_size = vocab_size
+        self.target_gc = target_gc
+        self.generator = Generator(seq_len, vocab_size, hidden_dim)
+        self.discriminator = Discriminator(seq_len, vocab_size)
+        self.g_optimizer = optim.Adam(self.generator.parameters(), lr=lr)
+        self.d_optimizer = optim.Adam(self.discriminator.parameters(), lr=lr)
+        self.loss_fn = nn.BCELoss()
+        self.tokenizer = None  # must be assigned externally
+
+    def train_step(self, real_batch):
+        batch_size = real_batch.size(0)
+        z = torch.randn(batch_size, 128)
+
+        # -------------------------
+        # Train Discriminator
+        # -------------------------
+        real_batch_onehot = nn.functional.one_hot(real_batch.long(), num_classes=self.vocab_size).float()
+        fake_data = self.generator(z)
+
+        real_labels = torch.ones(batch_size, 1)
+        fake_labels = torch.zeros(batch_size, 1)
+
+        self.d_optimizer.zero_grad()
+        d_real = self.discriminator(real_batch_onehot)
+        d_fake = self.discriminator(fake_data.detach())
+        d_loss = self.loss_fn(d_real, real_labels) + self.loss_fn(d_fake, fake_labels)
+        d_loss.backward()
+        self.d_optimizer.step()
+
+        # -------------------------
+        # Train Generator with GC bias
+        # -------------------------
+        self.g_optimizer.zero_grad()
+        d_fake_for_g = self.discriminator(fake_data)
+        g_loss = self.loss_fn(d_fake_for_g, real_labels)
+
+        # GC bias
+        if self.tokenizer is None:
+            raise ValueError("Please assign tokenizer to GAN before training!")
+
+        fake_indices = torch.argmax(fake_data, dim=-1)
+        gc_mask = (fake_indices == self.tokenizer.char2idx['G']) | (fake_indices == self.tokenizer.char2idx['C'])
+        gc_ratio = gc_mask.float().mean(dim=1)
+        gc_loss = ((gc_ratio - self.target_gc) ** 2).mean()
+
+        g_loss = g_loss + gc_loss
+        g_loss.backward()
+        self.g_optimizer.step()
+
+        return d_loss.item(), g_loss.item()
+
+    def generate(self, n_samples=10):
+        z = torch.randn(n_samples, 128)
+        fake_data = self.generator(z)
+        sequences = torch.argmax(fake_data, dim=-1)
+        sequences = torch.clamp(sequences, min=0, max=self.vocab_size - 1)
+        if sequences.ndim == 1:
+            sequences = sequences.unsqueeze(0)
+        return [seq.tolist() for seq in sequences]

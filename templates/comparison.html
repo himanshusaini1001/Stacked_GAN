@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>📊 DNA Metrics Comparison</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://code.highcharts.com/highcharts.js"></script>
+  <script src="https://code.highcharts.com/highcharts-more.js"></script>
+  <script src="https://code.highcharts.com/modules/heatmap.js"></script>
+  <script src="https://code.highcharts.com/modules/exporting.js"></script>
+  <style>
+    body {
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      color: #fff;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 25px 30px;
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+    }
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    header h1 {
+      font-size: 2.5rem;
+      background: linear-gradient(90deg, #6dd5ed, #2193b0);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 10px;
+    }
+    .btn-metrics {
+      display: inline-block;
+      padding: 10px 22px;
+      background: linear-gradient(90deg, #4facfe, #00f2fe);
+      color: #fff;
+      font-weight: 600;
+      border-radius: 12px;
+      text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.3s;
+    }
+    .btn-metrics:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(0, 255, 255, 0.5);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      font-size: 0.95rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      overflow: hidden;
+    }
+    th, td { padding: 12px 10px; text-align: center; }
+    thead th {
+      background: linear-gradient(90deg, #43e97b, #38f9d7);
+      color: #0f2027;
+      font-weight: 600;
+    }
+    tbody td {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+    tbody tr:nth-child(even) td { background: rgba(255, 255, 255, 0.12); }
+    tbody tr:hover td { background: rgba(255, 255, 255, 0.2); transition: 0.3s; }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      gap: 25px;
+      margin-top: 30px;
+    }
+
+    .chart-box {
+      padding: 15px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.08);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+    }
+    .chart-box h3 { text-align:center; color:#ffd54f; margin-bottom:15px; font-size:1.3rem; }
+  </style>
+</head>
+<body>
+  <div class="container comparison-page">
+    <header>
+      <h1 style="color: aliceblue;">🔬 DNA Metrics Comparison</h1>
+      <a href="/" class="btn-metrics">🏠 Back to Generator</a>
+    </header>
+
+    <section class="functional-metrics-box">
+      <h3 style="text-align:center; color:#ffd54f;">Metrics Overview</h3>
+      <table id="metricsTable">
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>GC Error</th>
+            <th>K-mer JS Divergence</th>
+            <th>Uniqueness</th>
+            <th>Avg Edit Distance</th>
+            <th>Motif Score</th>
+            <th>GC Content (%)</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <style>
+      /* Scope sizing fixes to comparison page only */
+      .comparison-page { overflow-x: hidden; }
+      .container.comparison-page { max-width: 1440px; }
+      .comparison-page .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(560px, 1fr));
+        gap: 22px;
+        align-items: stretch;
+        margin-top: 30px;
+        margin-left: 100px;
+      }
+      .comparison-page .chart-box {
+        display: flex;
+        flex-direction: column;
+        min-height: 520px;
+        max-height: 700px;
+        width: 500px;
+        padding-bottom: 10px;
+        overflow: hidden;
+      }
+      .comparison-page .chart-box h3 {
+        margin: 0 0 10px 0;
+        padding: 6px 0;
+        text-align: center;
+        min-height: 28px;
+      }
+      .comparison-page .chart-box > div[id] {
+        flex: 1 1 auto;
+        min-height: 0; /* allows flex child to shrink */
+      }
+      /* Ensure inner Highcharts containers fill available height */
+      .comparison-page .chart-box > div[id$="Chart"],
+      .comparison-page #performanceHeatmap,
+      .comparison-page #radarChart {
+        height: 100% !important;
+        width: 100% !important;
+      }
+      .comparison-page .chart-box .highcharts-container,
+      .comparison-page .chart-box .highcharts-root,
+      .comparison-page .chart-box svg {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+      }
+      /* Specific heights for variety where needed */
+      .comparison-page #performanceHeatmap { min-height: 400px; }
+      .comparison-page #radarChart { min-height: 540px; }
+      @media (max-width: 768px) {
+        .comparison-page .charts-grid { grid-template-columns: 1fr; }
+        .comparison-page .chart-box { min-height: 420px; max-height: 560px; }
+      }
+    </style>
+
+    <div class="charts-grid">
+      <div class="chart-box">
+        <h3>GC Error (Lower is Better)</h3>
+        <div id="gcChart" style="height:350px;"></div>
+      </div>
+      <div class="chart-box">
+        <h3>K-mer JS Divergence (Lower is Better)</h3>
+        <div id="kmerChart" style="height:350px;"></div>
+      </div>
+      <div class="chart-box">
+        <h3>Uniqueness (Higher is Better)</h3>
+        <div id="uniChart" style="height:350px;"></div>
+      </div>
+      <div class="chart-box">
+        <h3>Average Edit Distance (Lower is Better)</h3>
+        <div id="editChart" style="height:350px;"></div>
+      </div>
+      <div class="chart-box">
+        <h3>Performance Matrix Heatmap</h3>
+        <div id="performanceHeatmap" style="height:450px; width:100%;"></div>
+      </div>
+      <div class="chart-box">
+        <h3>GC Content Distribution</h3>
+        <div id="gcDistributionChart" style="height:350px;"></div>
+      </div>
+      <div class="chart-box">
+        <h3>Overall Performance Radar</h3>
+        <div id="radarChart" style="height:400px;"></div>
+      </div>
+      <div class="chart-box">
+        <h3>Motif Score Comparison</h3>
+        <div id="motifChart" style="height:350px;"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    async function loadMetrics() {
+      try {
+        const res = await fetch("/metrics_json");
+        const metrics = await res.json();
+
+        // Populate table
+        const tbody = document.querySelector("#metricsTable tbody");
+        tbody.innerHTML = "";
+        for (const model in metrics) {
+          const data = metrics[model];
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${model}</td>
+            <td>${data.GC_error.toFixed(3)}</td>
+            <td>${data.kmer_JS.toFixed(3)}</td>
+            <td>${data.Uniqueness.toFixed(3)}</td>
+            <td>${data.EditDist.toFixed(3)}</td>
+            <td>${data.MotifScore.toFixed(3)}</td>
+            <td>${(data.GC_content * 100).toFixed(1)}%</td>
+          `;
+          tbody.appendChild(tr);
+        }
+
+        const labels = Object.keys(metrics);
+        const colorMap = { 
+          "StackedGAN": "#ff6b6b",
+          "WGAN": "#3498db", 
+          "CTGAN": "#2ecc71",
+          "CGAN": "#f39c12",
+          "CramerGAN": "#9b59b6",
+          "DraGAN": "#e74c3c"
+        };
+
+        function createGroupedBar(id, key, labelText) {
+          const dataVals = labels.map(m => metrics[m][key]);
+          const colors = labels.map(m => colorMap[m] || "#3498db");
+
+          Highcharts.chart(id, {
+            chart: { type: 'column', backgroundColor: 'rgba(0,0,0,0)' },
+            title: { text: null },
+            xAxis: { categories: labels, labels: { style: { color: '#fff', fontWeight: 'bold' } } },
+            yAxis: { title: { text: labelText, style:{color:'#fff'} }, labels: { style:{color:'#fff'} } },
+            plotOptions: { column: { colorByPoint: true, colors: colors, dataLabels: { enabled: true, style:{color:'#fff', fontWeight:'bold'} } } },
+            series: [{ name: labelText, data: dataVals }]
+          });
+        }
+
+        // Individual metrics
+        createGroupedBar('gcChart', 'GC_error', 'GC Error');
+        createGroupedBar('kmerChart', 'kmer_JS', 'K-mer JS Divergence');
+        createGroupedBar('uniChart', 'Uniqueness', 'Uniqueness');
+        createGroupedBar('editChart', 'EditDist', 'Average Edit Distance');
+        createGroupedBar('motifChart', 'MotifScore', 'Motif Score');
+
+        // Performance Matrix Heatmap
+        createPerformanceHeatmap();
+
+        // GC Content Distribution
+        createGCDistributionChart();
+
+        // Performance Matrix Heatmap Function
+        function createPerformanceHeatmap() {
+          const metrics_names = ['GC_error', 'kmer_JS', 'Uniqueness', 'EditDist', 'MotifScore', 'GC_content'];
+          
+          const heatmapData = [];
+          labels.forEach((model, i) => {
+            metrics_names.forEach((metric, j) => {
+              let value = metrics[model][metric];
+              // Normalize values for better visualization
+              if (metric === 'Uniqueness') {
+                value = value; // Keep as is (higher is better)
+              } else if (metric === 'GC_content') {
+                value = value; // Keep as is (percentage)
+              } else {
+                value = 1 - value; // Invert for lower-is-better metrics
+              }
+              heatmapData.push([j, i, value]);
+            });
+          });
+
+          Highcharts.chart('performanceHeatmap', {
+            chart: { 
+              type: 'heatmap', 
+              backgroundColor: 'rgba(0,0,0,0)',
+              height: 400,
+              spacingTop: 20,
+              spacingBottom: 2,
+              spacingLeft: 20,
+              spacingRight: 20
+            },
+            title: { text: null },
+            xAxis: {
+              categories: ['GC Error', 'K-mer JS', 'Uniqueness', 'Edit Distance', 'Motif Score', 'GC Content'],
+              labels: { style: { color: '#fff', fontWeight: 'bold' } }
+            },
+            yAxis: {
+              categories: labels,
+              title: null,
+              labels: { style: { color: '#fff', fontWeight: 'bold' } }
+            },
+            colorAxis: {
+              min: 0,
+              max: 1,
+              stops: [
+                [0, '#ff6b6b'],
+                [0.5, '#ffd54f'],
+                [1, '#4caf50']
+              ]
+            },
+            legend: {
+              align: 'right',
+              layout: 'vertical',
+              margin: 10,
+              verticalAlign: 'middle',
+              y: 0,
+              symbolHeight: 320,
+              itemStyle: { color: '#fff', fontSize: '12px' }
+            },
+            tooltip: {
+              formatter: function () {
+                return '<b>' + this.series.yAxis.categories[this.point.y] + '</b><br>' +
+                       '<b>' + this.series.xAxis.categories[this.point.x] + '</b><br>' +
+                       'Score: <b>' + this.point.value.toFixed(3) + '</b>';
+              }
+            },
+            series: [{
+              name: 'Performance Score',
+              borderWidth: 1,
+              borderColor: '#fff',
+              data: heatmapData,
+              dataLabels: {
+                enabled: true,
+                color: '#000000',
+                style: { textOutline: 'none', fontWeight: 'bold' }
+              }
+            }]
+          });
+        }
+
+        // GC Content Distribution Chart
+        function createGCDistributionChart() {
+          const gcData = labels.map(model => ({
+            name: model,
+            y: metrics[model].GC_content * 100,
+            color: colorMap[model] || '#3498db'
+          }));
+
+          Highcharts.chart('gcDistributionChart', {
+            chart: { type: 'column', backgroundColor: 'rgba(0,0,0,0)' },
+            title: { text: null },
+            xAxis: { 
+              categories: labels,
+              labels: { style: { color: '#fff', fontWeight: 'bold' } }
+            },
+            yAxis: {
+              title: { text: 'GC Content (%)', style: { color: '#fff' } },
+              labels: { style: { color: '#fff' } },
+              max: 100
+            },
+            plotOptions: {
+              column: {
+                colorByPoint: true,
+                dataLabels: {
+                  enabled: true,
+                  format: '{y:.1f}%',
+                  style: { color: '#fff', fontWeight: 'bold' }
+                }
+              }
+            },
+            tooltip: {
+              pointFormat: '<b>{point.y:.1f}%</b> GC Content'
+            },
+            series: [{
+              name: 'GC Content',
+              data: gcData
+            }]
+          });
+        }
+
+
+        // Radar chart for overall
+        createRadarChart();
+
+        // Radar Chart Function
+        function createRadarChart() {
+          const radarSeries = Object.keys(metrics).map(m => ({
+            name: m,
+            data: [
+              metrics[m].GC_error, 
+              metrics[m].kmer_JS, 
+              metrics[m].Uniqueness, 
+              metrics[m].EditDist,
+              metrics[m].MotifScore,
+              metrics[m].GC_content
+            ],
+            color: colorMap[m] || '#3498db'
+          }));
+
+          Highcharts.chart('radarChart', {
+            chart: { polar: true, type: 'line', backgroundColor:'rgba(0,0,0,0)' },
+            title: { text: null },
+            pane: { size: '80%' },
+            xAxis: {
+              categories: ['GC Error','K-mer JS','Uniqueness','Avg Edit Distance','Motif Score','GC Content'],
+              tickmarkPlacement: 'on',
+              lineWidth: 0,
+              labels: { style: { color:'#fff', fontWeight:'bold', fontSize: '11px' } }
+            },
+            yAxis: {
+              gridLineInterpolation: 'polygon',
+              lineWidth: 0,
+              min: 0,
+              max: 1,
+              labels: { style: { color:'#fff', fontSize: '10px' } },
+              gridLineColor: 'rgba(255,255,255,0.2)'
+            },
+            plotOptions: {
+              line: {
+                marker: {
+                  enabled: true,
+                  radius: 4,
+                  symbol: 'circle'
+                },
+                lineWidth: 3
+              }
+            },
+            tooltip: { 
+              shared: true, 
+              pointFormat: '<span style="color:{series.color}">{series.name}: <b>{point.y:.3f}</b><br/>',
+              backgroundColor: 'rgba(0,0,0,0.8)',
+              style: { color: '#fff' }
+            },
+            legend: { 
+              align: 'center', 
+              verticalAlign: 'bottom', 
+              itemStyle: { color:'#fff', fontWeight:'bold', fontSize: '12px' },
+              backgroundColor: 'rgba(0,0,0,0.3)',
+              borderRadius: 8,
+              padding: 10
+            },
+            series: radarSeries
+          });
+        }
+
+      } catch(err) {
+        console.error("Failed to load metrics:", err);
+      }
+    }
+
+    loadMetrics();
+  </script>
+</body>
+</html>

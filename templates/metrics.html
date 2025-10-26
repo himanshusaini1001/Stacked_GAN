@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>📊 Full Biological Metrics</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js"></script>
+  <style>
+    #dna_file, #upload_btn {
+      display: inline-block;
+      padding: 10px 15px;
+      background: linear-gradient(90deg, #4ffe60, #00fe94);
+      color: #050101;
+      font-weight: 600;
+      border-radius: 12px;
+      text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.3s;
+      margin-right: 100px;
+      margin-left: 100px;
+      text-align: center;
+
+    }
+  .btn-metrics {
+      display: inline-block;
+      padding: 10px 22px;
+      background: linear-gradient(90deg, #4facfe, #00f2fe);
+      color: #fff;
+      font-weight: 600;
+      border-radius: 12px;
+      text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.3s;
+      margin-left: 400px;
+    }
+  .btn-metrics:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(0, 255, 255, 0.5);}
+      .upload-container {
+        text-align: center;
+      }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1 style="color: aliceblue;">📊 Full Biological Metrics</h1>
+      <a href="/" class="btn-metrics" >⬅ Back to Generator</a>
+      <p style="padding: 25px 100px 0px 225px;">Upload your DNA file (FASTA or CSV) to compute all metrics and visualize sequences.</p>
+    </header>
+
+    <section class="upload-container" style="padding: 5%;">
+      <input type="file" id="dna_file" accept=".fasta,.fa,.csv">
+      <button id="upload_btn">Upload & Analyze</button>
+    </section>
+
+    <!-- Base Composition moved next to 3D DNA -->
+
+    <!-- 3D DNA + Per-sequence ATGC bar -->
+    <section class="dna3d-container hidden">
+      <style>
+        .dna3d-flex { display: flex; gap: 24px; align-items: flex-start; }
+        #dna3d { flex: 1 1 auto; min-height: 380px; }
+        .chart-side { flex: 0 0 420px; display: flex; flex-direction: column; gap: 12px; }
+        .chart-side .chart-box { background: rgba(255,255,255,0.06); padding: 12px; height: 390px; width: 100%; border-radius: 10px; }
+        .chart-side .gc-box { background: rgba(255,255,255,0.06); padding: 12px; width: 100%; border-radius: 10px; color: #fff; }
+        #baseChart { width: 100% !important; height: 100% !important; display: block; }
+      </style>
+      <div class="dna3d-header">
+        <h3>3D DNA Helix</h3>
+        <select id="sequence_dropdown"></select>
+      </div>
+      <div class="dna3d-flex">
+        <div id="dna3d"></div>
+        <div class="chart-side">
+          <div class="gc-box">
+            <label id="gc_label">GC Content: 0%</label>
+            <progress id="gc_progress" value="0" max="100"></progress>
+          </div>
+          <div class="chart-box">
+            <canvas id="baseChart"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="chart-box" id="diHeatmapBox" style="height: 260px; overflow: hidden; margin-top: 20px;">
+        <h3 style="margin:0 0 8px 0;">Dinucleotide Heatmap</h3>
+        <div id="diHeatmap" style="width:100%; height: calc(100% - 28px);"></div>
+      </div>
+    </section>
+
+    <!-- Functional & Motif Metrics -->
+    <section class="functional-metrics-box hidden">
+      <h3>Motif & Functional Site Metrics</h3>
+      <p id="cpg_count_label">CpG Islands Count: 0</p>
+      <p id="tfbs_label">TFBS Count: 0</p>
+      <p id="repeats_label">Repeat Elements Count: 0</p>
+
+      <h3>Sequence Similarity / Conservation</h3>
+      <p id="kmer_label">k-mer Distribution (Top 5): </p>
+      <p id="conserved_label">Conserved Regions Count: 0</p>
+    </section>
+  </div>
+
+  <script src="{{ url_for('static', filename='metrics.js') }}"></script>
+</body>
+</html>
